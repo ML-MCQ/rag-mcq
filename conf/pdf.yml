@@ -1,0 +1,3 @@
+# PDF Processing Configuration
+PDF_START_PAGE: 14
+PDF_END_PAGE: 597  
