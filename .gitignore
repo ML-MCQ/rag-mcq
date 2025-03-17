@@ -1,0 +1,18 @@
+   # Environment variables
+   .env
+   
+   # Data files (you might want to exclude the PDF)
+   data/ISLRv2.pdf
+   data/vector_store/
+   
+   # Output files
+   *.json
+   *.log
+   
+   # Python specific
+   __pycache__/
+   *.py[cod]
+   *$py.class
+   .venv/
+   venv/
+   ENV/
