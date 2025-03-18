@@ -1,8 +1,7 @@
 # Environment variables
 .env
 # Data files (you might want to exclude the PDF)
-data/ISLRv2.pdf
-data/vector_store/
+data/*
    
 # Output files
 *.json

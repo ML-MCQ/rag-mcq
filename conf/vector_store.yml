@@ -1,0 +1,2 @@
+# Vector Store Configuration
+VECTOR_STORE_PATH: "data/vector_store"
