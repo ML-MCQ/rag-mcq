@@ -10,6 +10,7 @@ This project uses semantic chunking to process a PDF textbook, stores the chunks
 2. **Vector Store**: Stores and retrieves chunks based on semantic similarity.
 3. **Question Generator**: Creates multiple-choice questions with distractors.
 4. **Question Evaluator**: Assesses the quality of generated questions.
+5. **Streamlit UI**: Interactive web interface for generating and answering questions.
 
 ## Installation
 
@@ -33,68 +34,88 @@ AZURE_OPENAI_API_KEY="your_api_key"
 AZURE_OPENAI_MODEL_VERSION="your_model_version"
 AZURE_OPENAI_API_VERSION="your_api_version"
 AZURE_OPENAI_DEPLOYMENT_NAME="your_deployment_name"
-
-# PDF Processing Configuration
-PDF_START_PAGE=14  # 15 in 1-indexed page numbers (first topic starts at page 15)
-PDF_END_PAGE=597   # 598 in 1-indexed page numbers (last topic ends at page 598)
-
-# Embedding Model Configuration
-EMBEDDING_MODEL="sentence-transformers/all-MiniLM-L6-v2"
-CHUNK_SIZE=500
-CHUNK_OVERLAP=50
-
-# Vector Store Configuration
-VECTOR_STORE_PATH="data/vector_store"
-
-# Question Generation Configuration
-MIN_DIFFICULTY=-2.0
-MAX_DIFFICULTY=3.0
-NUM_QUESTIONS_PER_DIFFICULTY=5
 ```
 
+## Configuration
+
+The system uses YAML configuration files located in the `conf/` directory:
+
+- `embedding.yml`: Configuration for embedding model settings
+- `pdf.yml`: PDF processing parameters
+- `question_generation.yml`: Question generation settings, including difficulty levels and topics
+- `vector_store.yml`: Vector store configuration
+- `main_config.yml`: Main pipeline settings
+
+You can adjust these settings to customize behavior without modifying code.
+
 ## Usage
+
+### Command Line Interface
 
 The system can be run with a simple command that executes the entire pipeline:
 
 ```bash
 # Run the complete pipeline with default settings
 python main.py
-
-# Run with custom PDF file and page range
-python main.py --pdf_path data/ISLRv2.pdf --start_page 14 --end_page 597 --output_file questions.json --log_file pipeline.log
 ```
 
-For Windows PowerShell, use either of these approaches:
+All settings are managed through the `conf/main_config.yml` file:
 
-```powershell
-# PowerShell version with backtick (`) for line continuation
-python main.py `
-  --pdf_path data/ISLRv2.pdf `
-  --start_page 14 `
-  --end_page 597 `
-  --output_file questions.json `
-  --log_file pipeline.log
+```yaml
+# Main Configuration for RAG Multiple Choice Question Generator
+pdf_path: "data/ISLRv2.pdf"
+start_page: 0
+end_page: 100
+output_file: "questions.json"
+log_file: "run.log"
+vector_store_path: "data/vector_store"
+index_name: "islr_index"
+num_topics: 5
+questions_per_level: 1
+top_k: 4
+```
 
-# PowerShell version as a single line
-python main.py --pdf_path data/ISLRv2.pdf --start_page 14 --end_page 597 --output_file questions.json --log_file pipeline.log
+You can modify these settings in the configuration file before running the pipeline:
+1. `pdf_path`: Path to the PDF file to process
+2. `start_page` and `end_page`: Page range to process (0-indexed)
+3. `output_file`: Where to save the generated questions
+4. `log_file`: Where to save the logs
+5. `num_topics`: Number of topics to generate questions for
+6. `questions_per_level`: Number of questions to generate per difficulty level
+7. `top_k`: Number of relevant chunks to retrieve for each topic
+
+If you need to use a different configuration file, you can specify it with the `--config` flag:
+
+```bash
+python main.py --config path/to/your/config.yml
 ```
 
 This command will:
-1. Process the PDF from pages 15-598 (0-indexed as 14-597)
-2. Create and save a vector database at data/vector_store/islr_index
-3. Generate questions using the default settings from the configured functions
+1. Process the PDF using the page range in the configuration
+2. Create and save a vector database at the specified vector store path
+3. Generate questions for the specified number of topics
 4. Evaluate all generated questions
-5. Save the raw questions to questions.json
-6. Save the evaluated questions to questions_evaluated.json
-7. Output logs to the specified log file
+5. Save the raw questions, evaluated questions, and contexts as separate JSON files
+6. Output logs to the specified log file
 
-### Command Line Arguments
+### Streamlit Interactive UI
 
-- `--pdf_path`: Path to the PDF file (default: `data/ISLRv2.pdf`)
-- `--start_page`: First page to process, 0-indexed (default: 14, which is page 15 in the PDF)
-- `--end_page`: Last page to process, 0-indexed (default: 597, which is page 598 in the PDF)
-- `--output_file`: File to save generated questions to (default: `questions.json`)
-- `--log_file`: File to save logging output (default: `run.log`)
+The project includes a Streamlit web application that provides an interactive interface for generating and answering questions:
+
+```bash
+# Run the Streamlit app
+streamlit run app.py
+```
+
+The Streamlit UI allows you to:
+- Select specific topics from the textbook
+- Choose difficulty levels (basic, intermediate, advanced)
+- Specify the number of questions to generate
+- Generate questions on-demand
+- Test your knowledge by answering the questions
+- Get immediate feedback and explanations
+
+**Note:** Before running the Streamlit app, you must first process the PDF and create the vector store by running `main.py`.
 
 ## Output
 
@@ -102,13 +123,13 @@ The system produces JSON files containing the generated questions and evaluation
 
 - `questions.json`: Contains the raw generated questions.
 - `questions_evaluated.json`: Contains questions with evaluation scores and improvement suggestions.
+- `questions_contexts.json`: Contains the contexts used for question generation.
 
 Each question includes:
 - The question text
 - Four answer choices (with one correct answer)
 - Explanation of the correct answer
-- Difficulty rating
-- Category (e.g., fundamentals, algorithms, techniques)
+- Topic information
 - Level (basic, intermediate, advanced)
 
 ## Project Structure
@@ -127,7 +148,15 @@ rag-multiple-choice-generator/
 │   │   └── question_generator.py
 │   └── evaluation/
 │       └── question_evaluator.py
-├── main.py
+├── conf/
+│   ├── embedding.yml
+│   ├── main_config.yml
+│   ├── pdf.yml
+│   ├── question_generation.yml
+│   └── vector_store.yml
+├── main.py           # Main pipeline script
+├── app.py            # Streamlit UI application
+├── configLoader.py   # Configuration loading utility
 ├── requirements.txt
 ├── .env
 └── README.md
@@ -137,8 +166,10 @@ rag-multiple-choice-generator/
 
 - The system uses the open-source Hugging Face model `sentence-transformers/all-MiniLM-L6-v2` for embeddings.
 - The Azure OpenAI API is used for question generation and evaluation.
-- You can adjust difficulty levels and number of questions in the `.env` file.
-- Questions are divided into three levels: basic (-2.0 to -0.5), intermediate (-0.4 to 1.0), and advanced (1.1 to 3.0).
+- Questions are generated at three difficulty levels: basic, intermediate, and advanced.
+- The Streamlit UI requires Streamlit version 1.43.2 or higher.
+- The vector store uses FAISS for efficient similarity search.
+- Configuration is now managed through YAML files instead of environment variables.
 
 ## Team
 
