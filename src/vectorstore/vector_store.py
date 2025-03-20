@@ -157,31 +157,31 @@ class VectorStore:
             logger.error(f"Error exporting visualization data: {str(e)}")
             # Log but don't raise, as this is a non-critical operation
 
-    def load_vector_store(self, index_name: str = "default") -> bool:
+    def load_vector_store(self, index_name: str, allow_dangerous_deserialization: bool = False) -> None:
         """
         Load a vector store from disk.
-
+        
         Args:
             index_name: Name of the index to load
-
-        Returns:
-            True if successfully loaded, False otherwise
+            allow_dangerous_deserialization: Set to True to allow loading pickle files (use only with trusted files)
         """
+        index_path = os.path.join(self.vector_store_path, index_name)
+        
+        if not os.path.exists(index_path):
+            logger.warning(f"Vector store at {index_path} not found")
+            return
+        
         try:
-            # Create the load path
-            load_path = os.path.join(self.vector_store_path, index_name)
-
-            if not os.path.exists(load_path):
-                logger.warning(f"Vector store path {load_path} does not exist")
-                return False
-
-            # Load the FAISS vector store
-            self.vector_store = FAISS.load_local(load_path, self.embeddings)
-            logger.info(f"Vector store loaded from {load_path}")
-            return True
+            # Load the vector store with the safety parameter
+            self.vector_store = FAISS.load_local(
+                index_path, 
+                self.embeddings,
+                allow_dangerous_deserialization=allow_dangerous_deserialization
+            )
+            logger.info(f"Loaded vector store from {index_path}")
         except Exception as e:
             logger.error(f"Error loading vector store: {str(e)}")
-            return False
+            self.vector_store = None
 
     def similarity_search(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
         """
