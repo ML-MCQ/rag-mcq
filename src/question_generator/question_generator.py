@@ -71,8 +71,7 @@ class QuestionGenerator:
             "deep learning",
             "survival analysis and censored data",
             "unsupervised learning",
-            "multiple testing",
-            "time series analysis"
+            "multiple testing"
         ]
         
         self.levels = ["basic", "intermediate", "advanced"]
