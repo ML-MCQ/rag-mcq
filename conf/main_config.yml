@@ -1,0 +1,12 @@
+# Main Configuration for RAG Multiple Choice Question Generator
+
+pdf_path: "data/ISLRv2.pdf"
+start_page: 0
+end_page: 100
+output_file: "questions.json"
+log_file: "run.log"
+vector_store_path: "data/vector_store"
+index_name: "islr_index"
+num_topics: 5
+questions_per_level: 1
+top_k: 4

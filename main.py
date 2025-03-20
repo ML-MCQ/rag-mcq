@@ -9,6 +9,7 @@ import argparse
 import logging
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
+import yaml
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -241,6 +242,24 @@ def save_questions_to_file(questions_data: Dict[str, Any], output_file: str) -> 
         logger.error(f"Error saving questions to file: {str(e)}")
 
 
+def load_main_config(config_path: str) -> Dict[str, Any]:
+    """
+    Load the main configuration from a YAML file.
+
+    Args:
+        config_path: Path to the configuration file
+
+    Returns:
+        Dictionary containing configuration parameters
+    """
+    try:
+        with open(config_path, "r") as f:
+            return yaml.safe_load(f)
+    except Exception as e:
+        logger.error(f"Error loading configuration file: {str(e)}")
+        sys.exit(1)
+
+
 def main():
     """
     Main function to run the RAG multiple-choice question generator pipeline.
@@ -249,79 +268,60 @@ def main():
         description="RAG Multiple Choice Question Generator"
     )
     parser.add_argument(
-        "--pdf_path",
+        "--config",
         type=str,
-        default=os.path.join("data", "ISLRv2.pdf"),
-        help="Path to the PDF file",
-    )
-    parser.add_argument(
-        "--start_page",
-        type=int,
-        default=config["pdfProcessing"]["PDF_START_PAGE"],
-        help="First page to process (0-indexed)",
-    )
-    parser.add_argument(
-        "--end_page",
-        type=int,
-        default=config["pdfProcessing"]["PDF_END_PAGE"],
-        help="Last page to process (0-indexed)",
-    )
-    parser.add_argument(
-        "--output_file",
-        type=str,
-        default="questions.json",
-        help="File to save generated questions to",
-    )
-    parser.add_argument(
-        "--log_file", type=str, default="run.log", help="File to save logging output"
+        default=os.path.join("conf", "main_config.yml"),
+        help="Path to the configuration file",
     )
 
     args = parser.parse_args()
 
+    # Load configuration
+    config = load_main_config(args.config)
+
     # Set up logging to file if specified
     file_handler = None
-    if args.log_file:
-        file_handler = setup_logging_to_file(args.log_file)
+    if config.get("log_file"):
+        file_handler = setup_logging_to_file(config["log_file"])
 
     try:
-        # Define common parameters
-        vector_store_path = config["vectorStore"]["VECTOR_STORE_PATH"]
-        index_name = "islr_index"
-
         logger.info("=== Starting PDF Processing Step ===")
         vector_store = process_pdf(
-            args.pdf_path, args.start_page, args.end_page, vector_store_path, index_name
+            config["pdf_path"],
+            config["start_page"],
+            config["end_page"],
+            config["vector_store_path"],
+            config["index_name"],
         )
         logger.info("=== PDF Processing Step Completed ===")
 
         logger.info("=== Starting Question Generation Step ===")
-        # Generate questions using default parameters
-        questions, contexts = generate_questions(vector_store)
+        questions, contexts = generate_questions(
+            vector_store,
+            config["num_topics"],
+            config["questions_per_level"],
+            config["top_k"],
+        )
 
-        # Save raw questions
-        save_questions_to_file({"questions": questions}, args.output_file)
+        save_questions_to_file({"questions": questions}, config["output_file"])
 
-        # Also save contexts for later evaluation
-        context_file = args.output_file.replace(".json", "_contexts.json")
+        context_file = config["output_file"].replace(".json", "_contexts.json")
         save_questions_to_file({"contexts": contexts}, context_file)
         logger.info("=== Question Generation Step Completed ===")
 
         logger.info("=== Starting Question Evaluation Step ===")
-        # Evaluate questions
         results = evaluate_questions(questions, contexts)
 
-        # Save evaluated questions
         save_questions_to_file(
-            results, args.output_file.replace(".json", "_evaluated.json")
+            results, config["output_file"].replace(".json", "_evaluated.json")
         )
         logger.info("=== Question Evaluation Step Completed ===")
 
         logger.info(
-            f"Pipeline completed successfully. Files saved with base name: {args.output_file}"
+            f"Pipeline completed successfully. Files saved with base name: {config['output_file']}"
         )
 
     finally:
-        # Clean up logging handler if it was created
         if file_handler:
             remove_file_handler(file_handler)
 
