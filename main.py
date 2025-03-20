@@ -136,28 +136,10 @@ def generate_questions(
     Returns:
         Tuple of (List of generated questions, Dictionary of contexts)
     """
-    # Define topics based on ISLR chapters
-    topics = [
-        "statistical learning",
-        "linear regression",
-        "classification",
-        "resampling methods",
-        "linear model selection and regularization",
-        "moving beyond linearity",
-        "tree-based methods",
-        "support vector machines",
-        "deep learning",
-        "survival analysis and censored data",
-        "unsupervised learning",
-        "multiple testing",
-    ]
-
-    # Trim the topics list to the requested number
-    topics = topics[:num_topics]
-    
-    # Get levels from config
+    config = load_config()
+    topics = config["questionGeneration"]["TOPICS"][:num_topics]
     levels = config["questionGeneration"]["LEVELS"]
-    
+
     # Initialize question generator
     question_generator = QuestionGenerator()
 
@@ -183,8 +165,10 @@ def generate_questions(
 
         # Generate questions for each difficulty level for this topic
         for level in levels:
-            logger.info(f"Generating {questions_per_level} {level} questions for topic: {topic}")
-            
+            logger.info(
+                f"Generating {questions_per_level} {level} questions for topic: {topic}"
+            )
+
             # Generate questions for this topic at this level
             questions = question_generator.generate_multiple_choice_questions(
                 combined_content, level, questions_per_level
@@ -196,7 +180,9 @@ def generate_questions(
                 q["source"] = context_id
 
             all_questions.extend(questions)
-            logger.info(f"Generated {len(questions)} {level} questions for topic: {topic}")
+            logger.info(
+                f"Generated {len(questions)} {level} questions for topic: {topic}"
+            )
 
     logger.info(f"Generated a total of {len(all_questions)} questions")
     return all_questions, contexts

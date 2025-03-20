@@ -1,3 +1,16 @@
 # Question Generation Configuration
 LEVELS: ["basic", "intermediate", "advanced"]  
-QUESTIONS_PER_LEVEL: 10                     
+QUESTIONS_PER_LEVEL: 10
+TOPICS:
+  - "statistical learning"
+  - "linear regression"
+  - "classification"
+  - "resampling methods"
+  - "linear model selection and regularization"
+  - "moving beyond linearity"
+  - "tree-based methods"
+  - "support vector machines"
+  - "deep learning"
+  - "survival analysis and censored data"
+  - "unsupervised learning"
+  - "multiple testing"
