@@ -173,4 +173,4 @@ rag-multiple-choice-generator/
 
 ## Team
 
-- This project was created as a learning exercise for exploring RAG applications.
+- This project was created as a learning exercise for exploring RAG.
