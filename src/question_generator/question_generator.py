@@ -361,15 +361,16 @@ Format your response as a JSON list where each question is an object with fields
     
     def generate_questions_for_topics(self, 
                                       contexts: List[str], 
-                                      levels: List[str] = None, 
-                                      num_questions_per_context: int = 1) -> List[Dict[str, Any]]:
+                                      levels_per_context: Optional[List[List[str]]] = None,
+                                      num_questions_per_level: int = 1) -> List[Dict[str, Any]]:
         """
-        Generate multiple-choice questions for multiple contexts/topics.
+        Generate multiple-choice questions for multiple contexts/topics at multiple difficulty levels.
         
         Args:
             contexts: List of text contexts to generate questions from
-            levels: List of difficulty levels (one per context)
-            num_questions_per_context: Number of questions to generate per context
+            levels_per_context: List of lists containing difficulty levels for each context
+                               (e.g., [["basic", "intermediate"], ["basic"], ["intermediate", "advanced"]])
+            num_questions_per_level: Number of questions to generate per level per context
             
         Returns:
             List of generated question dictionaries across all contexts
@@ -378,28 +379,29 @@ Format your response as a JSON list where each question is an object with fields
             logger.warning("No contexts provided for question generation")
             return []
         
-        # If levels not provided, create a distribution
-        if not levels:
-            # Create a mix of difficulty levels
-            levels = []
-            for i in range(len(contexts)):
-                if i % 3 == 0:
-                    levels.append("basic")
-                elif i % 3 == 1:
-                    levels.append("intermediate")
-                else:
-                    levels.append("advanced")
+        # If levels_per_context not provided, use all levels for each context
+        if not levels_per_context:
+            levels_per_context = [self.levels for _ in contexts]
         
-        # Ensure levels list matches contexts list
-        if len(levels) != len(contexts):
-            levels = levels[:len(contexts)] + ["basic"] * (len(contexts) - len(levels))
+        # Ensure levels_per_context list matches contexts list length
+        if len(levels_per_context) != len(contexts):
+            # Fill missing context levels with all available levels
+            levels_per_context = levels_per_context[:len(contexts)] + [self.levels] * (len(contexts) - len(levels_per_context))
         
         all_questions = []
-        for i, (context, level) in enumerate(zip(contexts, levels)):
-            logger.info(f"Generating questions for context {i+1}/{len(contexts)} (level: {level})")
-            questions = self.generate_multiple_choice_questions(
-                context, level, num_questions_per_context
-            )
-            all_questions.extend(questions)
+        for i, (context, levels) in enumerate(zip(contexts, levels_per_context)):
+            logger.info(f"Generating questions for context {i+1}/{len(contexts)}")
+            
+            # Generate questions for each level for this context
+            for level in levels:
+                if level not in self.levels:
+                    logger.warning(f"Invalid level: {level}. Skipping.")
+                    continue
+                    
+                logger.info(f"Generating {num_questions_per_level} questions at {level} level")
+                questions = self.generate_multiple_choice_questions(
+                    context, level, num_questions_per_level
+                )
+                all_questions.extend(questions)
         
         return all_questions

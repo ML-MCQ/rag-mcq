@@ -121,9 +121,8 @@ def process_pdf(
 def generate_questions(
     vector_store: VectorStore,
     num_topics: int = 12,
-    questions_per_topic: int = 3,
+    questions_per_level: int = 3,
     top_k: int = 4,
-    levels: Optional[List[str]] = None,
 ) -> tuple[List[Dict[str, Any]], Dict[str, str]]:
     """
     Generate multiple-choice questions from the vector store content.
@@ -131,10 +130,8 @@ def generate_questions(
     Args:
         vector_store: The vector store containing the document chunks
         num_topics: Number of different topics to retrieve for question generation
-        questions_per_topic: Number of questions to generate per topic
+        questions_per_level: Number of questions to generate per difficulty level
         top_k: Number of relevant chunks to retrieve for each topic
-        levels: List of difficulty levels (basic, intermediate, advanced) for each topic
-                If not provided, will use a balanced mix
 
     Returns:
         Tuple of (List of generated questions, Dictionary of contexts)
@@ -157,32 +154,18 @@ def generate_questions(
 
     # Trim the topics list to the requested number
     topics = topics[:num_topics]
-
-    # If levels not provided, create a balanced distribution
-    if not levels:
-        levels = []
-        for i in range(len(topics)):
-            if i % 3 == 0:
-                levels.append("basic")
-            elif i % 3 == 1:
-                levels.append("intermediate")
-            else:
-                levels.append("advanced")
-
-    # Ensure levels list matches topics list length
-    if len(levels) != len(topics):
-        levels = levels[:len(topics)] + ["basic"] * (len(topics) - len(levels))
-
+    
+    # Get levels from config
+    levels = config["questionGeneration"]["LEVELS"]
+    
     # Initialize question generator
     question_generator = QuestionGenerator()
 
     all_questions = []
     contexts = {}
 
-    for i, (topic, level) in enumerate(zip(topics, levels)):
-        logger.info(
-            f"Generating questions for topic: {topic} (level: {level})"
-        )
+    for i, topic in enumerate(topics):
+        logger.info(f"Generating questions for topic: {topic}")
 
         # Search for relevant content in the vector store
         results = vector_store.similarity_search(topic, k=top_k)
@@ -198,18 +181,22 @@ def generate_questions(
         context_id = f"topic_{i}"
         contexts[context_id] = combined_content
 
-        # Generate questions for this topic
-        questions = question_generator.generate_multiple_choice_questions(
-            combined_content, level, questions_per_topic
-        )
+        # Generate questions for each difficulty level for this topic
+        for level in levels:
+            logger.info(f"Generating {questions_per_level} {level} questions for topic: {topic}")
+            
+            # Generate questions for this topic at this level
+            questions = question_generator.generate_multiple_choice_questions(
+                combined_content, level, questions_per_level
+            )
 
-        # Add topic and source information to each question
-        for q in questions:
-            q["topic"] = topic
-            q["source"] = context_id
+            # Add topic and source information to each question
+            for q in questions:
+                q["topic"] = topic
+                q["source"] = context_id
 
-        all_questions.extend(questions)
-        logger.info(f"Generated {len(questions)} questions for topic: {topic}")
+            all_questions.extend(questions)
+            logger.info(f"Generated {len(questions)} {level} questions for topic: {topic}")
 
     logger.info(f"Generated a total of {len(all_questions)} questions")
     return all_questions, contexts
@@ -323,7 +310,7 @@ def main():
 
         logger.info("=== Starting Question Generation Step ===")
         # Generate questions using default parameters
-        questions, contexts = generate_questions(vector_store, levels=["basic", "intermediate", "advanced"])
+        questions, contexts = generate_questions(vector_store)
 
         # Save raw questions
         save_questions_to_file({"questions": questions}, args.output_file)
