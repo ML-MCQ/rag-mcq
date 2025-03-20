@@ -78,87 +78,90 @@ class QuestionGenerator:
         
     def _load_default_sample_questions(self) -> List[Dict[str, Any]]:
         """
-        Load default sample questions for few-shot prompting.
+        Load default sample questions with answers for few-shot prompting.
+        Each sample includes a question, multiple choices, correct answer, and explanation.
         
         Returns:
             List of sample question dictionaries
         """
         return [
-            # Basic cards (difficulty -2.0 to -0.5)
-            {"question": "What is supervised learning?", 
-            "difficulty": -2.0, "level": "basic"},
-            
-            {"question": "What is a feature?", 
-            "difficulty": -1.0, "level": "basic"},
-            
-            {"question": "What is gradient descent?", 
-            "difficulty": -0.5, "level": "basic"},
-            
-            # Intermediate cards (difficulty -0.4 to 1.0)
-            {"question": "What is the curse of dimensionality?", 
-            "difficulty": -0.4, "level": "intermediate"},
-            
-            {"question": "What is a support vector machine (SVM)?", 
-            "difficulty": 0.0, "level": "intermediate"},
-            
-            {"question": "What is transfer learning?", 
-            "difficulty": 1.0, "level": "intermediate"},
-            
-            # Advanced cards (difficulty 1.1 to 3.0)
-            {"question": "Explain the Expectation-Maximization (EM) algorithm.", 
-            "difficulty": 1.1, "level": "advanced"},
-            
-            {"question": "What is the Vapnik-Chervonenkis (VC) dimension?", 
-            "difficulty": 1.5, "level": "advanced"},
-            
-            {"question": "Explain causal inference in machine learning.", 
-            "difficulty": 3.0, "level": "advanced"}
+            {
+                "question": "What is supervised learning?",
+                "choices": {
+                    "A": "Learning without any labeled data",
+                    "B": "Learning from labeled training data with known outputs",
+                    "C": "Clustering data points without supervision",
+                    "D": "Reducing the dimensionality of data"
+                },
+                "correct_answer": "B",
+                "explanation": "Supervised learning involves training models using labeled data where the correct outputs are known, allowing the algorithm to learn the mapping between inputs and outputs."
+            },
+            {
+                "question": "What is gradient descent?",
+                "choices": {
+                    "A": "A method for increasing model error",
+                    "B": "A technique for data preprocessing",
+                    "C": "An optimization algorithm that minimizes the loss function",
+                    "D": "A way to visualize high-dimensional data"
+                },
+                "correct_answer": "C",
+                "explanation": "Gradient descent is an optimization algorithm that iteratively adjusts model parameters to minimize the loss function by moving in the direction of steepest descent."
+            },
+            {
+                "question": "What is the purpose of cross-validation?",
+                "choices": {
+                    "A": "To make the model more complex",
+                    "B": "To evaluate model performance on unseen data",
+                    "C": "To increase model training time",
+                    "D": "To reduce the number of features"
+                },
+                "correct_answer": "B",
+                "explanation": "Cross-validation is used to assess how well a model generalizes to unseen data by splitting the dataset into training and validation sets multiple times."
+            }
         ]
     
-    def _create_prompt_with_examples(self, context: str, difficulty: float, num_questions: int = 1) -> str:
+    def _create_prompt_with_examples(self, context: str, level: str, num_questions: int = 1) -> str:
         """
         Create a prompt with few-shot examples for question generation.
         
         Args:
             context: The text content to generate questions from
-            difficulty: The target difficulty level for generated questions
+            level: The difficulty level (basic, intermediate, or advanced)
             num_questions: Number of questions to generate
             
         Returns:
             Formatted prompt with examples
         """
-        # Calculate difficulty range
-        difficulty_min = max(-2.0, difficulty - 0.3)
-        difficulty_max = min(3.0, difficulty + 0.3)
-        
-        # Determine level based on difficulty
-        if difficulty < -0.5:
-            level = "basic"
-        elif difficulty < 1.0:
-            level = "intermediate"
+        # Choose examples based on level - try to match level, otherwise use any samples
+        samples = [q for q in self.sample_questions if q.get('level', 'basic') == level]
+        if not samples:
+            samples = self.sample_questions[:3]
         else:
-            level = "advanced"
+            samples = samples[:3]
         
-        # Filter sample questions by difficulty range and level
-        filtered_samples = [
-            q for q in self.sample_questions 
-            if difficulty_min <= q["difficulty"] <= difficulty_max and q["level"] == level
-        ]
-        
-        # Pick up to 3 samples
-        samples = random.sample(filtered_samples, min(3, len(filtered_samples)))
-        
-        # Format samples for the prompt - only include fields that exist
+        # Format examples for the prompt in a user-friendly way
         sample_text = ""
         for i, sample in enumerate(samples):
             sample_text += f"Example {i+1}:\n"
             sample_text += f"Question: {sample['question']}\n"
-            sample_text += f"Difficulty: {sample['difficulty']}\n"
-            sample_text += f"Level: {sample['level']}\n\n"
+            
+            # Include choices if available
+            if 'choices' in sample:
+                sample_text += "Choices:\n"
+                for letter, choice in sample['choices'].items():
+                    sample_text += f"  {letter}: {choice}\n"
+                sample_text += f"Correct Answer: {sample['correct_answer']}\n"
+                if 'explanation' in sample:
+                    sample_text += f"Explanation: {sample['explanation']}\n"
+                if 'category' in sample:
+                    sample_text += f"Category: {sample['category']}\n"
+                sample_text += f"Level: {level}\n"
+            
+            sample_text += "\n"
         
-        # Add an explicit example of a complete MC question structure
+        # Add a complete example showing the expected JSON output format
         complete_example = """
-        COMPLETE OUTPUT EXAMPLE:
+        EXPECTED JSON OUTPUT FORMAT:
         {
         "question": "Which of the following is a characteristic of supervised learning?",
         "choices": {
@@ -169,7 +172,6 @@ class QuestionGenerator:
         },
         "correct_answer": "C",
         "explanation": "Supervised learning algorithms learn from labeled training data where the correct outputs are provided. This allows the algorithm to learn the relationship between inputs and outputs.",
-        "difficulty": -1.5,
         "category": "statistical learning",
         "level": "basic"
         }
@@ -182,20 +184,18 @@ Your task is to generate {num_questions} challenging multiple-choice questions b
 
 1. The questions must be directly related to the content provided.
 2. Each question should have one correct answer and three plausible but incorrect answers.
-3. The questions should have a difficulty level around {difficulty} on a scale from -2.0 (very basic) to 3.0 (very advanced).
-4. The level should be "{level}" based on the difficulty.
-5. Assign an appropriate category from this list: {', '.join(self.topics)}
-6. Make sure questions test understanding rather than just recall.
+3. The questions should be at the "{level}" level of difficulty.
+4. Assign an appropriate category from this list: {', '.join(self.topics)}
+5. Make sure questions test understanding rather than just recall.
 
-Here are some examples of questions with similar difficulty level to help you gauge the complexity:
+Here are some examples of {level} level questions to help you gauge the complexity:
 
 {sample_text}
 
-The examples above show the difficulty level and question complexity, but you need to generate COMPLETE multiple-choice questions with all required elements.
-
+Below is the exact JSON format I want you to use for your response:
 {complete_example}
 
-Now, based on the following content, create {num_questions} multiple-choice questions:
+Now, based on the following content, create {num_questions} multiple-choice questions at {level} level:
 
 CONTENT:
 {context}
@@ -205,22 +205,21 @@ For each question, provide:
 2. Four answer choices (A, B, C, D) where exactly one is correct
 3. The letter of the correct answer
 4. An explanation why the correct answer is right and others are wrong
-5. The difficulty level (a number between {difficulty_min} and {difficulty_max})
-6. An appropriate category from the list provided
-7. The level ("{level}")
+5. An appropriate category from the list provided
+6. The level ("{level}")
 
-Format your response as a JSON list where each question is an object with fields: "question", "choices", "correct_answer", "explanation", "difficulty", "category", and "level".
+Format your response as a JSON list where each question is an object with fields: "question", "choices", "correct_answer", "explanation", "category", and "level".
 """
         return prompt
     
-    def generate_multiple_choice_questions(self, context: str, difficulty: float = 0.0, 
-                                          num_questions: int = 1) -> List[Dict[str, Any]]:
+    def generate_multiple_choice_questions(self, context: str, level: str = "basic", 
+                                           num_questions: int = 1) -> List[Dict[str, Any]]:
         """
         Generate multiple-choice questions based on the provided context.
         
         Args:
             context: The text content to generate questions from
-            difficulty: The target difficulty level for generated questions
+            level: The difficulty level (basic, intermediate, or advanced)
             num_questions: Number of questions to generate
             
         Returns:
@@ -230,13 +229,18 @@ Format your response as a JSON list where each question is an object with fields
             logger.warning("Empty context provided for question generation")
             return []
         
+        # Validate level
+        if level not in self.levels:
+            logger.warning(f"Invalid level: {level}. Using 'basic' as default.")
+            level = "basic"
+        
         max_retries = 3
         current_temp = self.llm.temperature
         
         for attempt in range(max_retries):
             try:
                 # Create prompt with examples
-                prompt = self._create_prompt_with_examples(context, difficulty, num_questions)
+                prompt = self._create_prompt_with_examples(context, level, num_questions)
                 prompt += "\n\nIMPORTANT: Your response must be ONLY valid JSON. Do not include any additional text before or after the JSON array."
                 
                 # Get LLM response
@@ -326,7 +330,7 @@ Format your response as a JSON list where each question is an object with fields
             List of valid, formatted question dictionaries
         """
         required_fields = ["question", "choices", "correct_answer", 
-                           "explanation", "difficulty", "category", "level"]
+                           "explanation", "category", "level"]
         
         valid_questions = []
         for i, q in enumerate(questions):
@@ -346,20 +350,25 @@ Format your response as a JSON list where each question is an object with fields
                             choices_dict[letters[j]] = choice
                     q["choices"] = choices_dict
                 
+                # Ensure level is one of the valid levels
+                if q["level"] not in self.levels:
+                    logger.warning(f"Question {i+1} has invalid level: {q['level']}. Setting to 'basic'.")
+                    q["level"] = "basic"
+                
                 valid_questions.append(q)
         
         return valid_questions
     
     def generate_questions_for_topics(self, 
                                       contexts: List[str], 
-                                      difficulties: List[float] = None, 
+                                      levels: List[str] = None, 
                                       num_questions_per_context: int = 1) -> List[Dict[str, Any]]:
         """
         Generate multiple-choice questions for multiple contexts/topics.
         
         Args:
             contexts: List of text contexts to generate questions from
-            difficulties: List of difficulty levels (one per context)
+            levels: List of difficulty levels (one per context)
             num_questions_per_context: Number of questions to generate per context
             
         Returns:
@@ -369,65 +378,28 @@ Format your response as a JSON list where each question is an object with fields
             logger.warning("No contexts provided for question generation")
             return []
         
-        # If difficulties not provided, use default values spread across range
-        if not difficulties:
-            # Create a spread of difficulties from -2.0 to 3.0
-            difficulties = [
-                -2.0 + (5.0 * i / (len(contexts) - 1)) if len(contexts) > 1 else 0.0
-                for i in range(len(contexts))
-            ]
+        # If levels not provided, create a distribution
+        if not levels:
+            # Create a mix of difficulty levels
+            levels = []
+            for i in range(len(contexts)):
+                if i % 3 == 0:
+                    levels.append("basic")
+                elif i % 3 == 1:
+                    levels.append("intermediate")
+                else:
+                    levels.append("advanced")
         
-        # Ensure difficulties list matches contexts list
-        if len(difficulties) != len(contexts):
-            difficulties = difficulties[:len(contexts)] + [0.0] * (len(contexts) - len(difficulties))
+        # Ensure levels list matches contexts list
+        if len(levels) != len(contexts):
+            levels = levels[:len(contexts)] + ["basic"] * (len(contexts) - len(levels))
         
         all_questions = []
-        for i, (context, difficulty) in enumerate(zip(contexts, difficulties)):
-            logger.info(f"Generating questions for context {i+1}/{len(contexts)} (difficulty: {difficulty})")
+        for i, (context, level) in enumerate(zip(contexts, levels)):
+            logger.info(f"Generating questions for context {i+1}/{len(contexts)} (level: {level})")
             questions = self.generate_multiple_choice_questions(
-                context, difficulty, num_questions_per_context
+                context, level, num_questions_per_context
             )
             all_questions.extend(questions)
         
         return all_questions
-
-
-if __name__ == "__main__":
-    # Simple test to verify the question generator works
-    from src.vectorstore.vector_store import VectorStore
-    
-    # Try to load the vector store
-    vector_store = VectorStore()
-    if not vector_store.load_vector_store("test_index"):
-        print("Vector store not found. Please run the vector store test first.")
-        exit()
-    
-    # Perform a search to get content for question generation
-    results = vector_store.similarity_search("statistical learning methods", k=1)
-    
-    if not results:
-        print("No search results found. Please ensure the vector store has content.")
-        exit()
-    
-    # Create and test the question generator
-    question_generator = QuestionGenerator()
-    
-    # Generate a question from the retrieved content
-    content = results[0]["content"]
-    questions = question_generator.generate_multiple_choice_questions(
-        content, difficulty=0.0, num_questions=1
-    )
-    
-    # Print the generated questions
-    print(f"Generated {len(questions)} questions:")
-    for i, q in enumerate(questions):
-        print(f"\nQuestion {i+1}:")
-        print(f"Text: {q['question']}")
-        print("Choices:")
-        for choice_letter, choice_text in q["choices"].items():
-            print(f"  {choice_letter}: {choice_text}")
-        print(f"Correct Answer: {q['correct_answer']}")
-        print(f"Explanation: {q['explanation']}")
-        print(f"Difficulty: {q['difficulty']}")
-        print(f"Category: {q['category']}")
-        print(f"Level: {q['level']}") 

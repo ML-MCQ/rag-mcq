@@ -217,28 +217,3 @@ class VectorStore:
         except Exception as e:
             logger.error(f"Error performing similarity search: {str(e)}")
             return []
-
-
-if __name__ == "__main__":
-    # Simple test to verify the vector store works
-    from src.processors.pdf_processor import PDFProcessor
-
-    # Process a few pages of the PDF
-    processor = PDFProcessor()
-    pdf_path = os.path.join("data", "ISLRv2.pdf")
-    chunks = processor.process_pdf(pdf_path, start_page=15, end_page=20)
-
-    # Create and test the vector store
-    vector_store = VectorStore()
-    vector_store.index_documents(chunks)
-    vector_store.save_vector_store("test_index")
-
-    # Test similarity search
-    query = "What is statistical learning?"
-    results = vector_store.similarity_search(query, k=3)
-
-    print(f"Search results for query: '{query}'")
-    for i, result in enumerate(results):
-        print(f"\nResult {i+1}:")
-        print(f"Similarity score: {result['similarity_score']}")
-        print(f"Content: {result['content'][:200]}...")

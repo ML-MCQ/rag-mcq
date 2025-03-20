@@ -123,7 +123,7 @@ def generate_questions(
     num_topics: int = 12,
     questions_per_topic: int = 3,
     top_k: int = 4,
-    difficulty_range: Optional[List[float]] = None,
+    levels: Optional[List[str]] = None,
 ) -> tuple[List[Dict[str, Any]], Dict[str, str]]:
     """
     Generate multiple-choice questions from the vector store content.
@@ -133,7 +133,8 @@ def generate_questions(
         num_topics: Number of different topics to retrieve for question generation
         questions_per_topic: Number of questions to generate per topic
         top_k: Number of relevant chunks to retrieve for each topic
-        difficulty_range: Range of difficulties to generate questions for
+        levels: List of difficulty levels (basic, intermediate, advanced) for each topic
+                If not provided, will use a balanced mix
 
     Returns:
         Tuple of (List of generated questions, Dictionary of contexts)
@@ -157,26 +158,30 @@ def generate_questions(
     # Trim the topics list to the requested number
     topics = topics[:num_topics]
 
-    # Set difficulty range if not provided
-    if not difficulty_range:
-        min_difficulty = float(os.environ.get("MIN_DIFFICULTY", "-2.0"))
-        max_difficulty = float(os.environ.get("MAX_DIFFICULTY", "3.0"))
-        step = (
-            (max_difficulty - min_difficulty) / (len(topics) - 1)
-            if len(topics) > 1
-            else 0
-        )
-        difficulty_range = [min_difficulty + i * step for i in range(len(topics))]
+    # If levels not provided, create a balanced distribution
+    if not levels:
+        levels = []
+        for i in range(len(topics)):
+            if i % 3 == 0:
+                levels.append("basic")
+            elif i % 3 == 1:
+                levels.append("intermediate")
+            else:
+                levels.append("advanced")
+
+    # Ensure levels list matches topics list length
+    if len(levels) != len(topics):
+        levels = levels[:len(topics)] + ["basic"] * (len(topics) - len(levels))
 
     # Initialize question generator
     question_generator = QuestionGenerator()
 
     all_questions = []
-    contexts = {}  # Store contexts for evaluation
+    contexts = {}
 
-    for i, (topic, difficulty) in enumerate(zip(topics, difficulty_range)):
+    for i, (topic, level) in enumerate(zip(topics, levels)):
         logger.info(
-            f"Generating questions for topic: {topic} (difficulty: {difficulty:.1f})"
+            f"Generating questions for topic: {topic} (level: {level})"
         )
 
         # Search for relevant content in the vector store
@@ -195,7 +200,7 @@ def generate_questions(
 
         # Generate questions for this topic
         questions = question_generator.generate_multiple_choice_questions(
-            combined_content, difficulty, questions_per_topic
+            combined_content, level, questions_per_topic
         )
 
         # Add topic and source information to each question
@@ -318,7 +323,7 @@ def main():
 
         logger.info("=== Starting Question Generation Step ===")
         # Generate questions using default parameters
-        questions, contexts = generate_questions(vector_store)
+        questions, contexts = generate_questions(vector_store, levels=["basic", "intermediate", "advanced"])
 
         # Save raw questions
         save_questions_to_file({"questions": questions}, args.output_file)

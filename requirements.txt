@@ -17,3 +17,4 @@ pandas
 scikit-learn
 python-dotenv
 tqdm
+streamlit

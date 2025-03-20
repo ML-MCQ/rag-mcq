@@ -77,9 +77,8 @@ class QuestionEvaluator:
         
         correct_answer = question["correct_answer"]
         explanation = question["explanation"]
-        difficulty = question["difficulty"]
-        category = question["category"]
         level = question["level"]
+        category = question["category"]
         
         prompt = f"""
 You are an expert evaluator of statistical learning multiple-choice questions. You need to evaluate the quality of this question based on the original context it was generated from.
@@ -95,9 +94,8 @@ ANSWER CHOICES:
 
 CORRECT ANSWER: {correct_answer}
 EXPLANATION: {explanation}
-DIFFICULTY RATING: {difficulty} (on a scale from -2.0 to 3.0)
+DIFFICULTY LEVEL: {level}
 CATEGORY: {category}
-LEVEL: {level}
 
 Please evaluate this question on the following criteria:
 1. Relevance: Is the question directly related to the context? (1-10 scale)
@@ -300,9 +298,9 @@ Each field (except suggestions) should be an object with "score" (number) and "e
                 "avg_clarity": 0,
                 "avg_educational_value": 0,
                 "total_questions": 0,
-                "high_quality_count": 0,  # Questions with overall score >= 8
-                "medium_quality_count": 0,  # Questions with overall score 5-7
-                "low_quality_count": 0  # Questions with overall score < 5
+                "high_quality_count": 0,  #
+                "medium_quality_count": 0,  
+                "low_quality_count": 0  
             }
         
         # Extract scores from evaluations
@@ -339,51 +337,3 @@ Each field (except suggestions) should be an object with "score" (number) and "e
         }
         
         return stats
-
-
-if __name__ == "__main__":
-    # Simple test to verify the question evaluator works
-    from src.vectorstore.vector_store import VectorStore
-    from src.question_generator.question_generator import QuestionGenerator
-    
-    # Try to load the vector store
-    vector_store = VectorStore()
-    if not vector_store.load_vector_store("test_index"):
-        print("Vector store not found. Please run the vector store test first.")
-        exit()
-    
-    # Perform a search to get content for question generation
-    results = vector_store.similarity_search("statistical learning methods", k=1)
-    
-    if not results:
-        print("No search results found. Please ensure the vector store has content.")
-        exit()
-    
-    # Generate a question
-    content = results[0]["content"]
-    question_generator = QuestionGenerator()
-    questions = question_generator.generate_multiple_choice_questions(
-        content, difficulty=0.0, num_questions=1
-    )
-    
-    if not questions:
-        print("No questions generated. Please check the question generator.")
-        exit()
-    
-    # Evaluate the generated question
-    evaluator = QuestionEvaluator()
-    evaluation = evaluator.evaluate_question(questions[0], content)
-    
-    # Print the evaluation results
-    print("\nEvaluation Results:")
-    print(f"Overall Score: {evaluation['overall']['score']}/10")
-    print(f"Relevance: {evaluation['relevance']['score']}/10 - {evaluation['relevance']['explanation']}")
-    print(f"Correctness: {evaluation['correctness']['score']}/10 - {evaluation['correctness']['explanation']}")
-    print(f"Distractors: {evaluation['distractors']['score']}/10 - {evaluation['distractors']['explanation']}")
-    print(f"Difficulty: {evaluation['difficulty']['score']}/10 - {evaluation['difficulty']['explanation']}")
-    print(f"Clarity: {evaluation['clarity']['score']}/10 - {evaluation['clarity']['explanation']}")
-    print(f"Educational Value: {evaluation['educational_value']['score']}/10 - {evaluation['educational_value']['explanation']}")
-    
-    print("\nSuggestions for Improvement:")
-    for i, suggestion in enumerate(evaluation["suggestions"]):
-        print(f"{i+1}. {suggestion}") 

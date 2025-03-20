@@ -121,18 +121,3 @@ class PDFProcessor:
             chunk.metadata["page_range"] = f"{start_page}-{end_page}"
             
         return chunks
-
-
-if __name__ == "__main__":
-    # Simple test to verify the processor works
-    processor = PDFProcessor()
-    pdf_path = os.path.join("data", "ISLRv2.pdf")
-    
-    # Process only the first few pages for testing
-    chunks = processor.process_pdf(pdf_path, start_page=15, end_page=20)
-    
-    print(f"Extracted {len(chunks)} chunks from the PDF")
-    print("\nSample chunk content:")
-    if chunks:
-        print(f"Chunk {chunks[0].metadata['chunk_id']}:")
-        print(chunks[0].page_content[:300] + "...") 

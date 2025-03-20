@@ -1,4 +1,3 @@
 # Question Generation Configuration
-MIN_DIFFICULTY: -2.0  
-MAX_DIFFICULTY: 3.0   
-NUM_QUESTIONS_PER_DIFFICULTY: 5
+LEVELS: ["basic", "intermediate", "advanced"]  
+QUESTIONS_PER_LEVEL: 10                     
