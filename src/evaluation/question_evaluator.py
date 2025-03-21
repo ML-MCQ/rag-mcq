@@ -70,7 +70,7 @@ class QuestionEvaluator:
             for letter, choice in question["choices"].items():
                 choices_text += f"{letter}. {choice}\n"
         elif isinstance(question["choices"], list):
-            letters = ['A', 'B', 'C', 'D', 'E']
+            letters = ['A', 'B', 'C', 'D']
             for i, choice in enumerate(question["choices"]):
                 if i < len(letters):
                     choices_text += f"{letters[i]}. {choice}\n"
@@ -81,42 +81,42 @@ class QuestionEvaluator:
         category = question["category"]
         
         prompt = f"""
-You are an expert evaluator of statistical learning multiple-choice questions. You need to evaluate the quality of this question based on the original context it was generated from.
+        You are an expert evaluator of statistical learning multiple-choice questions. You need to evaluate the quality of this question based on the original context it was generated from.
 
-CONTEXT:
-{context}
+        CONTEXT:
+        {context}
 
-QUESTION:
-{question_text}
+        QUESTION:
+        {question_text}
 
-ANSWER CHOICES:
-{choices_text}
+        ANSWER CHOICES:
+        {choices_text}
 
-CORRECT ANSWER: {correct_answer}
-EXPLANATION: {explanation}
-DIFFICULTY LEVEL: {level}
-CATEGORY: {category}
+        CORRECT ANSWER: {correct_answer}
+        EXPLANATION: {explanation}
+        DIFFICULTY LEVEL: {level}
+        CATEGORY: {category}
 
-Please evaluate this question on the following criteria:
-1. Relevance: Is the question directly related to the context? (1-10 scale)
-2. Correctness: Is the indicated correct answer actually correct? (1-10 scale)
-3. Distractors: Are the wrong answers plausible but clearly incorrect? (1-10 scale)
-4. Difficulty: Is the assigned difficulty level appropriate for this question? (1-10 scale)
-5. Clarity: Is the question clearly worded and unambiguous? (1-10 scale)
-6. Educational Value: Does the question test understanding rather than just facts? (1-10 scale)
+        Please evaluate this question on the following criteria:
+        1. Relevance: Is the question directly related to the context? (1-10 scale)
+        2. Correctness: Is the indicated correct answer actually correct? (1-10 scale)
+        3. Distractors: Are the wrong answers plausible but clearly incorrect? (1-10 scale)
+        4. Difficulty: Is the assigned difficulty level appropriate for this question? (1-10 scale)
+        5. Clarity: Is the question clearly worded and unambiguous? (1-10 scale)
+        6. Educational Value: Does the question test understanding rather than just facts? (1-10 scale)
 
-For each criterion, provide:
-- A score (1-10, where 10 is perfect)
-- A brief explanation for your score
+        For each criterion, provide:
+        - A score (1-10, where 10 is perfect)
+        - A brief explanation for your score
 
-Then, provide an overall quality score (1-10) and any suggestions to improve the question.
+        Then, provide an overall quality score (1-10) and any suggestions to improve the question.
 
-Format your response as a JSON object with the following fields:
-"relevance", "correctness", "distractors", "difficulty", "clarity", "educational_value", "overall", "suggestions"
+        Format your response as a JSON object with the following fields:
+        "relevance", "correctness", "distractors", "difficulty", "clarity", "educational_value", "overall", "suggestions"
 
-Each field (except suggestions) should be an object with "score" (number) and "explanation" (string).
-"suggestions" should be an array of strings.
-"""
+        Each field (except suggestions) should be an object with "score" (number) and "explanation" (string).
+        "suggestions" should be an array of strings.
+        """
         return prompt
     
     def evaluate_question(self, question: Dict[str, Any], context: str) -> Dict[str, Any]:
@@ -134,9 +134,8 @@ Each field (except suggestions) should be an object with "score" (number) and "e
         for attempt in range(max_retries):
             try:
                 # Ensure question has the expected format
-                # Convert choices to dictionary format if it's a list
                 if "choices" in question and isinstance(question["choices"], list):
-                    letters = ['A', 'B', 'C', 'D', 'E']
+                    letters = ['A', 'B', 'C', 'D']
                     choices_dict = {}
                     for i, choice in enumerate(question["choices"]):
                         if i < len(letters):
