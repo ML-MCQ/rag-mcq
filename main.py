@@ -120,8 +120,9 @@ def process_pdf(
 
 def generate_questions(
     vector_store: VectorStore,
-    num_topics: int = 12,
-    questions_per_level: int = 3,
+    # num_topics: int = 12,
+    num_topics: int = 1,
+    questions_per_level: int = 1,
     top_k: int = 4,
 ) -> tuple[List[Dict[str, Any]], Dict[str, str]]:
     """
@@ -323,12 +324,19 @@ def main():
         logger.info("=== Starting Question Evaluation Step ===")
         # Evaluate questions
         results = evaluate_questions(questions, contexts)
-
+        
         # Save evaluated questions
         save_questions_to_file(
             results, args.output_file.replace(".json", "_evaluated.json")
         )
         logger.info("=== Question Evaluation Step Completed ===")
+        
+        improved_results = QuestionGenerator().improve_questions(results)
+        # Save improved questions
+        save_questions_to_file(
+            improved_results, args.output_file.replace(".json", "_improved.json")
+        )
+        logger.info("=== Question Improvement Step Completed ===")
 
         logger.info(
             f"Pipeline completed successfully. Files saved with base name: {args.output_file}"
